@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Panel Admin — Hacia Adentro</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #FAF6F0; --bg2: #F2EDE6; --surface: #FFFFFF;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --text: #3A3530; --muted: #7A736C; --hint: #AAA49E;
+    --sage: #4A7A62; --sage-light: #D4E5DB;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --green: #1A6635; --green-light: #E6F4EA;
+    --blue-light: #EAF1FB;
+  }
+  body { background: var(--bg); font-family: system-ui, sans-serif; color: var(--text); font-size: 14px; line-height: 1.5; }
+
+  /* ── Auth ── */
+  #auth-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+  }
+  .auth-box { background: var(--surface); border: 0.5px solid var(--border); border-radius: 16px; padding: 36px 32px; width: 100%; max-width: 380px; }
+  .auth-box h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .auth-box p { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  /* ── Layout ── */
+  #app-screen { display: none; }
+  .topbar { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar-left h1 { font-size: 16px; font-weight: 600; }
+  .topbar-left p { font-size: 12px; color: var(--muted); }
+  .main { max-width: 800px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 20px; }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; color: var(--text); }
+
+  /* ── Form elements ── */
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .field label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  .field input, .field select, .field textarea {
+    padding: 9px 12px; border: 0.5px solid var(--border2); border-radius: 8px;
+    font-size: 14px; font-family: inherit; color: var(--text);
+    background: var(--bg); outline: none; transition: border-color 0.15s, background 0.15s;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--sage); background: var(--surface); }
+  .field textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 540px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* ── Buttons ── */
+  .btn { padding: 10px 20px; border-radius: 8px; font-size: 13px; font-family: inherit; font-weight: 500; cursor: pointer; transition: all 0.18s; border: none; }
+  .btn-primary { background: var(--text); color: #fff; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.35; cursor: default; }
+  .btn-ghost { background: none; border: 0.5px solid var(--border2); color: var(--muted); }
+  .btn-ghost:hover { background: var(--bg2); color: var(--text); }
+  .btn-danger { background: none; border: 0.5px solid var(--border); color: var(--red); font-size: 12px; padding: 5px 10px; border-radius: 6px; }
+  .btn-danger:hover { background: var(--red-light); border-color: var(--red); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* ── URL row ── */
+  .url-row { display: flex; gap: 8px; }
+  .url-row input { flex: 1; }
+
+  /* ── Source badge ── */
+  .source-badge { display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; }
+  .source-badge.show { display: flex; }
+  .source-badge.youtube { background: #FEE8E6; color: #9C1F18; }
+  .source-badge.spotify { background: var(--green-light); color: var(--green); }
+  .source-badge.drive   { background: #E8F0FE; color: #1A56C2; }
+  .source-badge.unknown { background: var(--bg2); color: var(--muted); }
+  .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* ── Pills / chips ── */
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { padding: 6px 14px; border-radius: 100px; border: 0.5px solid var(--border2); font-size: 12px; cursor: pointer; background: var(--bg); color: var(--muted); transition: all 0.18s; user-select: none; }
+  .pill:hover { border-color: var(--text); color: var(--text); }
+  .pill.on { background: var(--text); color: #fff; border-color: var(--text); }
+  .pill.sage.on { background: var(--sage); border-color: var(--sage); color: #fff; }
+
+  /* ── Conditional fields ── */
+  .cond { display: none; }
+  .cond.show { display: block; }
+
+  /* ── Preview ── */
+  .preview-wrap { background: var(--bg2); border-radius: 10px; padding: 14px; margin-top: 14px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+  .preview-hint { font-size: 13px; color: var(--hint); text-align: center; }
+  #previewFrame { width: 100%; border: none; border-radius: 8px; display: none; }
+
+  /* ── Action row ── */
+  .action-row { display: flex; gap: 10px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+
+  /* ── Content list ── */
+  .content-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg); border-radius: 10px; border: 0.5px solid var(--border); margin-bottom: 8px; }
+  .ci-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .ci-yt { background: #FEE8E6; } .ci-sp { background: var(--green-light); } .ci-dr { background: #E8F0FE; }
+  .ci-info { flex: 1; min-width: 0; }
+  .ci-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ci-meta { font-size: 11px; color: var(--muted); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .ci-pill { background: var(--surface); border: 0.5px solid var(--border); border-radius: 100px; padding: 1px 8px; font-size: 10px; }
+  .ci-toggle { width: 32px; height: 18px; background: var(--border2); border-radius: 9px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; }
+  .ci-toggle.on { background: var(--sage); }
+  .ci-toggle::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fff; border-radius:50%; transition:transform 0.2s; }
+  .ci-toggle.on::after { transform: translateX(14px); }
+
+  /* ── Toast ── */
+  #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:#fff; padding:10px 20px; border-radius:100px; font-size:13px; transition:transform 0.3s; z-index:999; white-space:nowrap; pointer-events:none; }
+  #toast.show { transform:translateX(-50%) translateY(0); }
+
+  /* ── Misc ── */
+  .section-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600; background:var(--sage-light); color:var(--sage); text-transform:uppercase; letter-spacing:0.5px; }
+  .empty { text-align:center; padding:32px; color:var(--hint); font-size:13px; }
+  .divider { height:0.5px; background:var(--border); margin:16px 0; }
+  .config-note { background:var(--blue-light); border-radius:10px; padding:14px 16px; font-size:13px; margin-bottom:20px; color:#1A3A6E; border-left:3px solid #378ADD; }
+  .config-note code { background:rgba(0,0,0,0.08); padding:1px 5px; border-radius:4px; font-size:12px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ AUTH SCREEN ══════════════════ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>Panel de administración</h1>
+    <p>Accede para gestionar el contenido de la app</p>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="tu@email.com"/>
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="authPass" placeholder="••••••••"/>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="login()">Entrar</button>
+    <p id="authError" style="color:var(--red);font-size:12px;margin-top:10px;display:none;"></p>
+  </div>
+</div>
+
+<!-- ══════════════════ APP SCREEN ══════════════════ -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Panel de contenido · Hacia Adentro</h1>
+      <p id="userEmail" style="font-size:12px;color:var(--muted);"></p>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Cerrar sesión</button>
+  </div>
+
+  <div class="main">
+
+    <!-- Config note (se oculta automáticamente si SUPABASE_URL está definida) -->
+    <div class="config-note" id="configNote">
+      ⚙️ Antes de usar el panel, edita las constantes <code>SUPABASE_URL</code> y <code>SUPABASE_ANON_KEY</code> al inicio del script con los valores de tu proyecto Supabase.
+    </div>
+
+    <!-- ── Añadir contenido ── -->
+    <div class="card">
+      <div class="card-title">＋ Añadir contenido</div>
+
+      <div class="field">
+        <label>Enlace (Drive, YouTube o Spotify)</label>
+        <div class="url-row">
+          <input type="url" id="urlInput" placeholder="Pega aquí el enlace..." oninput="onUrlType(this.value)"/>
+          <button class="btn btn-ghost" onclick="detect()">Detectar</button>
+        </div>
+        <div class="source-badge" id="srcBadge"><div class="badge-dot"></div><span id="srcText"></span></div>
+      </div>
+
+      <div id="formFields" style="display:none;">
+        <div class="divider"></div>
+        <div class="grid2">
+          <div class="field" style="grid-column:1/-1;">
+            <label>Título</label>
+            <input type="text" id="fTitle" placeholder="Nombre que verá tu madre"/>
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <label>Descripción (opcional)</label>
+            <textarea id="fDesc" placeholder="Una línea que sitúe el contenido..."></textarea>
+          </div>
+        </div>
+
+        <!-- Tipo archivo (solo Drive) -->
+        <div class="field cond" id="fileTypeField">
+          <label>Tipo de archivo</label>
+          <div class="pills" id="fileTypePills">
+            <div class="pill" onclick="pick(this,'ft')">🎵 Audio</div>
+            <div class="pill" onclick="pick(this,'ft')">🎬 Vídeo</div>
+            <div class="pill" onclick="pick(this,'ft')">📄 PDF</div>
+            <div class="pill" onclick="pick(this,'ft')">🖼️ Imagen</div>
+          </div>
+        </div>
+
+        <!-- Sección destino -->
+        <div class="field">
+          <label>Sección donde aparecerá</label>
+          <div class="pills" id="sectionPills">
+            <div class="pill" onclick="pickSection(this,'interior')">🌿 Yo interior</div>
+            <div class="pill" onclick="pickSection(this,'crisis')">🌊 Momentos difíciles</div>
+            <div class="pill" onclick="pickSection(this,'sonar')">✨ Sonidos y calma</div>
+            <div class="pill" onclick="pickSection(this,'sadhana')">☀️ Sadhanas</div>
+            <div class="pill" onclick="pickSection(this,'radio')">📻 Radio interior</div>
+          </div>
+        </div>
+
+        <!-- Radio: tema -->
+        <div class="field cond" id="radioField">
+          <label>Tema (Radio interior)</label>
+          <div class="pills" id="themePills"></div>
+          <input type="text" id="newTheme" placeholder="+ Escribe un tema nuevo y pulsa Enter" style="margin-top:8px;display:none;" onkeydown="addTheme(event)"/>
+          <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:fit-content;" onclick="document.getElementById('newTheme').style.display='block';document.getElementById('newTheme').focus()">+ Tema nuevo</button>
+        </div>
+
+        <!-- Sadhana: categoría -->
+        <div class="field cond" id="sadhanaField">
+          <label>Categoría (Sadhana)</label>
+          <div class="pills">
+            <div class="pill" onclick="pick(this,'sc')">🌳 Naturaleza</div>
+            <div class="pill" onclick="pick(this,'sc')">👁️ Sentidos</div>
+            <div class="pill" onclick="pick(this,'sc')">🚶 Movimiento</div>
+            <div class="pill" onclick="pick(this,'sc')">🤫 Silencio</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Duración</label>
+            <input type="text" id="fDuration" placeholder="ej. 12 min"/>
+          </div>
+          <div class="field">
+            <label>Etiqueta</label>
+            <input type="text" id="fTag" placeholder="ej. Principiante"/>
+          </div>
+        </div>
+
+        <!-- Vista previa -->
+        <div class="field">
+          <label>Vista previa</label>
+          <div class="preview-wrap">
+            <p class="preview-hint" id="previewHint">La vista previa aparecerá al detectar la fuente</p>
+            <iframe id="previewFrame" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn btn-primary" id="publishBtn" onclick="publish()">Publicar en la app</button>
+          <button class="btn btn-ghost" onclick="saveDraft()">Guardar como borrador</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Lista de contenido ── -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;">
+        <span>📋 Contenido publicado</span>
+        <div style="display:flex;gap:8px;">
+          <select id="filterSection" onchange="loadContent()" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:6px;font-size:12px;background:var(--bg);color:var(--muted);">
+            <option value="">Todas las secciones</option>
+            <option value="interior">🌿 Yo interior</option>
+            <option value="crisis">🌊 Momentos difíciles</option>
+            <option value="sonar">✨ Sonidos y calma</option>
+            <option value="sadhana">☀️ Sadhanas</option>
+            <option value="radio">📻 Radio interior</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="loadContent()">↺ Actualizar</button>
+        </div>
+      </div>
+      <div id="contentList"><div class="empty">Cargando...</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN — reemplaza con tus valores de Supabase
+// ══════════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://TU_PROYECTO.supabase.co';
+const SUPABASE_ANON_KEY = 'TU_ANON_KEY';
+// ══════════════════════════════════════════════════════════════
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const SECTION_LABELS = {
+  interior: '🌿 Yo interior', crisis: '🌊 Momentos difíciles',
+  sonar: '✨ Sonidos y calma', sadhana: '☀️ Sadhanas', radio: '📻 Radio interior'
+};
+const SRC_ICONS = { youtube:'▶️', spotify:'🎧', drive:'📁' };
+const SRC_CLS   = { youtube:'ci-yt', spotify:'ci-sp', drive:'ci-dr' };
+
+let currentSource = null, currentSection = null, themes = [];
+
+// ── Auth ──────────────────────────────────────────────────────
+async function login() {
+  const email = document.getElementById('authEmail').value;
+  const pass  = document.getElementById('authPass').value;
+  const { error } = await db.auth.signInWithPassword({ email, password: pass });
+  if (error) { showErr(error.message); return; }
+  showApp();
+}
+async function logout() {
+  await db.auth.signOut();
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+function showErr(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg; el.style.display = 'block';
+}
+async function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  const { data: { user } } = await db.auth.getUser();
+  document.getElementById('userEmail').textContent = user?.email || '';
+  if (SUPABASE_URL.includes('TU_PROYECTO')) {
+    document.getElementById('configNote').style.display = 'block';
+  } else {
+    document.getElementById('configNote').style.display = 'none';
+  }
+  await loadThemes();
+  await loadContent();
+}
+
+// Restaurar sesión al cargar
+window.addEventListener('load', async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) showApp();
+});
+
+// ── Detección de fuente ───────────────────────────────────────
+function onUrlType(val) { if (val.length > 20) detect(); }
+
+function detect() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+  const src = sniffSource(url);
+  currentSource = src;
+  const badge = document.getElementById('srcBadge');
+  const labels = {
+    youtube: '✓ YouTube detectado',
+    spotify: '✓ Spotify detectado — necesita sesión Premium activa',
+    drive:   '✓ Google Drive detectado',
+    unknown: '⚠ Fuente no reconocida'
+  };
+  badge.className = 'source-badge show ' + src;
+  document.getElementById('srcText').textContent = labels[src];
+  if (src !== 'unknown') {
+    document.getElementById('formFields').style.display = 'block';
+    document.getElementById('fileTypeField').classList.toggle('show', src === 'drive');
+    renderPreview(url, src);
+  }
+}
+
+function sniffSource(url) {
+  if (/drive\.google\.com|docs\.google\.com/.test(url)) return 'drive';
+  if (/youtube\.com|youtu\.be/.test(url)) return 'youtube';
+  if (/spotify\.com/.test(url)) return 'spotify';
+  return 'unknown';
+}
+
+function buildEmbedUrl(url, src) {
+  if (src === 'youtube') {
+    const m = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return m ? `https://www.youtube.com/embed/${m[1]}?rel=0&modestbranding=1` : null;
+  }
+  if (src === 'spotify') {
+    const m = url.match(/spotify\.com\/(episode|track|playlist|show)\/([a-zA-Z0-9]+)/);
+    return m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}?utm_source=generator` : null;
+  }
+  if (src === 'drive') {
+    const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    return m ? `https://drive.google.com/file/d/${m[1]}/preview` : null;
+  }
+  return null;
+}
+
+function renderPreview(url, src) {
+  const embed = buildEmbedUrl(url, src);
+  const frame = document.getElementById('previewFrame');
+  const hint  = document.getElementById('previewHint');
+  if (embed) {
+    frame.src = embed;
+    frame.style.display = 'block';
+    frame.style.height = src === 'spotify' ? '152px' : '260px';
+    hint.style.display = 'none';
+  } else {
+    hint.textContent = 'No se puede previsualizar — comprueba que el enlace es directo al recurso.';
+    hint.style.display = 'block';
+    frame.style.display = 'none';
+  }
+}
+
+// ── Sección y chips ───────────────────────────────────────────
+function pick(el, group) {
+  el.closest('.pills').querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+}
+
+function pickSection(el, section) {
+  document.querySelectorAll('#sectionPills .pill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+  currentSection = section;
+  document.getElementById('radioField').classList.toggle('show', section === 'radio');
+  document.getElementById('sadhanaField').classList.toggle('show', section === 'sadhana');
+}
+
+// ── Temas Radio ───────────────────────────────────────────────
+async function loadThemes() {
+  const { data } = await db.from('radio_themes').select('name').order('name');
+  themes = (data || []).map(r => r.name);
+  renderThemePills();
+}
+
+function renderThemePills() {
+  const container = document.getElementById('themePills');
+  container.innerHTML = '';
+  themes.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'pill';
+    el.textContent = t;
+    el.onclick = () => pick(el, 'th');
+    container.appendChild(el);
+  });
+}
+
+async function addTheme(e) {
+  if (e.key !== 'Enter') return;
+  const input = document.getElementById('newTheme');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!themes.includes(name)) {
+    await db.from('radio_themes').insert({ name });
+    themes.push(name);
+    renderThemePills();
+  }
+  input.value = '';
+  input.style.display = 'none';
+  toast('Tema añadido: ' + name);
+}
+
+// ── Publicar ─────────────────────────────────────────────────
+async function publish(isDraft = false) {
+  const url   = document.getElementById('urlInput').value.trim();
+  const title = document.getElementById('fTitle').value.trim();
+  if (!url || !title) { toast('Añade al menos el enlace y el título'); return; }
+  if (!currentSection) { toast('Selecciona la sección de destino'); return; }
+
+  const embedUrl   = buildEmbedUrl(url, currentSource);
+  const radioTheme = document.querySelector('#themePills .pill.on')?.textContent || null;
+  const sadhanaCat = document.querySelector('#sadhanaField .pill.on')?.textContent?.replace(/^.+\s/,'').toLowerCase() || null;
+  const fileType   = document.querySelector('#fileTypePills .pill.on')?.textContent?.replace(/^.+\s/,'').toLowerCase() || null;
+
+  const row = {
+    title,
+    description: document.getElementById('fDesc').value.trim() || null,
+    duration:    document.getElementById('fDuration').value.trim() || null,
+    tag:         document.getElementById('fTag').value.trim() || null,
+    source:      currentSource,
+    url,
+    embed_url:   embedUrl,
+    section:     currentSection,
+    radio_theme: radioTheme,
+    sadhana_cat: sadhanaCat,
+    file_type:   fileType,
+    published:   !isDraft
+  };
+
+  const { error } = await db.from('content').insert(row);
+  if (error) { toast('Error: ' + error.message); return; }
+
+  toast(isDraft ? 'Borrador guardado' : '✓ Publicado en ' + SECTION_LABELS[currentSection]);
+  resetForm();
+  loadContent();
+}
+
+function saveDraft() { publish(true); }
+
+// ── Cargar lista ──────────────────────────────────────────────
+async function loadContent() {
+  const filter  = document.getElementById('filterSection').value;
+  let query = db.from('content').select('*').order('created_at', { ascending: false });
+  if (filter) query = query.eq('section', filter);
+  const { data, error } = await query;
+  if (error) { document.getElementById('contentList').innerHTML = '<div class="empty">Error al cargar</div>'; return; }
+  renderList(data || []);
+}
+
+function renderList(items) {
+  const list = document.getElementById('contentList');
+  if (!items.length) { list.innerHTML = '<div class="empty">No hay contenido todavía. Añade el primero arriba.</div>'; return; }
+  list.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'content-item';
+    const sub = item.section === 'radio' && item.radio_theme ? item.radio_theme
+              : item.section === 'sadhana' && item.sadhana_cat ? item.sadhana_cat : '';
+    div.innerHTML = `
+      <div class="ci-icon ${SRC_CLS[item.source]}">${SRC_ICONS[item.source]}</div>
+      <div class="ci-info">
+        <div class="ci-title">${item.title}</div>
+        <div class="ci-meta">
+          <span class="ci-pill">${SECTION_LABELS[item.section]}</span>
+          ${sub ? `<span class="ci-pill">${sub}</span>` : ''}
+          ${item.duration ? `<span>${item.duration}</span>` : ''}
+          <span style="opacity:0.5">${item.source}</span>
+          ${!item.published ? '<span style="color:var(--red)">borrador</span>' : ''}
+        </div>
+      </div>
+      <button class="ci-toggle ${item.published ? 'on' : ''}" title="${item.published ? 'Ocultar' : 'Publicar'}" onclick="togglePublish('${item.id}',${item.published})"></button>
+      <button class="btn-danger btn" onclick="deleteItem('${item.id}')">Eliminar</button>`;
+    list.appendChild(div);
+  });
+}
+
+async function togglePublish(id, current) {
+  await db.from('content').update({ published: !current }).eq('id', id);
+  loadContent();
+}
+
+async function deleteItem(id) {
+  if (!confirm('¿Eliminar este contenido? No se puede deshacer.')) return;
+  await db.from('content').delete().eq('id', id);
+  toast('Contenido eliminado');
+  loadContent();
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function resetForm() {
+  ['urlInput','fTitle','fDesc','fDuration','fTag'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('formFields').style.display = 'none';
+  document.getElementById('srcBadge').className = 'source-badge';
+  document.querySelectorAll('.pill.on').forEach(p => p.classList.remove('on'));
+  document.getElementById('previewFrame').style.display = 'none';
+  document.getElementById('previewHint').style.display = 'block';
+  document.getElementById('previewHint').textContent = 'La vista previa aparecerá al detectar la fuente';
+  ['radioField','sadhanaField','fileTypeField'].forEach(id => document.getElementById(id).classList.remove('show'));
+  currentSource = null; currentSection = null;
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
