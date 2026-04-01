@@ -490,7 +490,10 @@ function openModal(tag, title, desc, embedHtml) {
   document.getElementById('overlay').classList.add('on');
 }
 
-function closeModal() { document.getElementById('overlay').classList.remove('on'); }
+function closeModal() {
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('mContent').innerHTML = '';
+}
 function maybeClose(e) { if (e.target===document.getElementById('overlay')) closeModal(); }
 
 // ── Respiración ────────────────────────────────────────────
