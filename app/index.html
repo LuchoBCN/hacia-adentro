@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Hacia Adentro</title>
+<title>Un alivio para mamá</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet"/>
@@ -31,21 +31,21 @@
 
   /* ── Variables modo oscuro ── */
   body.dark {
-    --cream: #16120E;
+    --cream: #1A1F2E;
     --text: #EDE8E0;
     --muted: #A89E94;
-    --hint: #6A635C;
-    --card-bg: #221E19;
-    --body-bg: #16120E;
-    --border: rgba(255,255,255,0.08);
-    --sage-light: #1E3829; --sage-dark: #7EC4A0;
+    --hint: #6A7A8C;
+    --card-bg: #232A3A;
+    --body-bg: #1A1F2E;
+    --border: rgba(255,255,255,0.09);
+    --sage-light: #1A2E28; --sage-dark: #7EC4A0;
     --lavender-dark: #B09AE0;
-    --gold-light: #2E2210; --gold-dark: #E0B87A;
-    --crisis-soft: #2E1A12; --crisis-warm: #E8845A;
-    --sky-light: #0E2430; --sky: #7AAEC4;
-    --mystic-light: #1E1830; --mystic: #C0A8F0; --mystic-mid: #7860B0;
-    --amber-light: #2A1E08; --amber-dark: #E0B060;
-    --header-bg-a: #0E2018; --header-bg-b: #16101E; --header-bg-c: #201408;
+    --gold-light: #2A2218; --gold-dark: #E0B87A;
+    --crisis-soft: #2A1E1A; --crisis-warm: #E8845A;
+    --sky-light: #152030; --sky: #8ABCD4;
+    --mystic-light: #1E1E32; --mystic: #C0A8F0; --mystic-mid: #7860B0;
+    --amber-light: #28200A; --amber-dark: #E0B060;
+    --header-bg-a: #162A22; --header-bg-b: #1A1830; --header-bg-c: #22180E;
     color-scheme: dark;
   }
 
@@ -282,7 +282,7 @@
   <!-- Header -->
   <div class="header">
     <p class="eyebrow">Tu espacio sagrado</p>
-    <h1>Hacia <em>adentro</em></h1>
+    <h1>Un alivio para <em>mamá</em></h1>
     <p class="header-sub">Recursos para el bienestar emocional y el camino interior</p>
     <div class="mode-indicator" id="modeIndicator"><div class="mode-dot"></div><span id="modeLabel">Modo día</span></div>
     <div class="nav">
@@ -429,8 +429,8 @@
 // ══════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN — mismos valores que en admin/index.html
 // ══════════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://xophxfvithuflrpflzii.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvcGh4ZnZpdGh1ZmxycGZsemlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMzk5NjAsImV4cCI6MjA5MDYxNTk2MH0.4wllkQSDAy8SCyFIZmWUggCQ12D_Kxr8smPKKX113Ls';
+const SUPABASE_URL     = 'https://TU_PROYECTO.supabase.co';
+const SUPABASE_ANON_KEY = 'TU_ANON_KEY';
 // ══════════════════════════════════════════════════════════════
 
 const { createClient } = supabase;
@@ -632,22 +632,6 @@ async function doLogin() {
 }
 
 async function checkSession() {
-  // Procesar token de recuperación de contraseña si viene en la URL
-  const hash = window.location.hash;
-  if (hash && hash.includes('type=recovery')) {
-    const params = new URLSearchParams(hash.substring(1));
-    const accessToken  = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    if (accessToken) {
-      await db.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-      const newPass = prompt('Escribe tu nueva contraseña:');
-      if (newPass) {
-        await db.auth.updateUser({ password: newPass });
-        alert('¡Contraseña guardada! Ya puedes entrar con ella.');
-        window.location.hash = '';
-      }
-    }
-  }
   const { data: { session } } = await db.auth.getSession();
   if (session) { currentUser = session.user; showApp(); }
 }
